@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Source {
+  id          String     @id @default(cuid())
+  name        String
+  url         String     @unique
+  type        String     // "forum" | "blog" | "news" | "subreddit" | "product"
+  category    String     @default("general")
+  enabled     Boolean    @default(true)
+  lastScanned DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  items       Item[]
+}
+
+model Item {
+  id            String   @id @default(cuid())
+  externalId    String?  // ID from the source platform
+  title         String
+  url           String   @unique
+  summary       String?
+  fullText      String?
+  author        String?
+  publishedAt   DateTime?
+  score         Int?     // upvotes, likes, etc.
+  commentCount  Int?
+  tags          String?  // JSON array as string
+  sourceId      String
+  source        Source   @relation(fields: [sourceId], references: [id])
+  analysis      Analysis?
+  digestItems   DigestItem[]
+  createdAt     DateTime @default(now())
+
+  @@index([sourceId])
+  @@index([publishedAt])
+}
+
+model Analysis {
+  id              String @id @default(cuid())
+  itemId          String @unique
+  item            Item   @relation(fields: [itemId], references: [id])
+  opportunityType String // "market_gap" | "trending" | "underserved" | "emerging_tech" | "regulation_change" | "consumer_shift"
+  score           Float  // 0-10, how promising
+  reasoning       String
+  targetAudience  String?
+  marketSize      String?
+  keyInsight      String
+  actionable      String? // what someone could do
+  tags            String? // JSON array as string
+  createdAt       DateTime @default(now())
+
+  @@index([opportunityType])
+  @@index([score])
+}
+
+model Digest {
+  id          String       @id @default(cuid())
+  title       String
+  summary     String
+  sentAt      DateTime?
+  createdAt   DateTime     @default(now())
+  items       DigestItem[]
+}
+
+model DigestItem {
+  id        String @id @default(cuid())
+  digestId  String
+  digest    Digest @relation(fields: [digestId], references: [id])
+  itemId    String
+  item      Item   @relation(fields: [itemId], references: [id])
+  rank      Int
+
+  @@unique([digestId, itemId])
+}
+
+model Subscriber {
+  id        String   @id @default(cuid())
+  chatId    String   @unique
+  username  String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
